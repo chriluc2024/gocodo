@@ -159,3 +159,20 @@
 |                          |                                                                                                              | buf.Reset() // Reset before using                                                                             |
 |                          |                                                                                                              | defer bufPool.Put(buf)                                                                                        |
 |                          |                                                                                                              | // Use buf                                                                                                    |
+
+
+***PPROF GOLANG
+
+| Aspect                   | pprof (Go)                                | SonarQube                                             |
+|--------------------------|-------------------------------------------|-------------------------------------------------------|
+| Purpose                  | Performance profiling of Go applications  | Static code quality and security analysis             |
+| Scope                    | Runtime profiling (CPU, memory, goroutines) | Static analysis (bugs, vulnerabilities, code smells)  |
+| Language Support         | Go                                        | Multiple languages (Java, JavaScript, Python, etc.)   |
+| Integration              | Go runtime and tooling                    | CI/CD pipelines, version control systems, build tools |
+| Usage Context            | Performance optimization                  | Code quality and security improvement                 |
+| Analysis Type            | Dynamic (runtime profiling)               | Static (code inspection)                              |
+| Output                   | Profiling data, performance reports, flame charts | Quality reports, issue lists, code metrics   |
+| Visualization            | Interactive web-based interfaces, graphs  | Web-based dashboard with trends and metrics           |
+| Security Analysis        | No                                        | Yes                                                   |
+| Maintainability Analysis | No                                        | Yes                                                   |
+| Code Coverage            | No                                        | Yes                                                   |
