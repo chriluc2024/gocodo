@@ -78,279 +78,86 @@
 
 
 
+| Issue                    | Pitfall                                                                                                      | Correct                                                                                                        |
+|--------------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| Ignoring Errors          | ```go                                                                                                        | ```go                                                                                                         |
+|                          | out, _ := os.Create(fileName)                                                                                | out, err := os.Create(fileName)                                                                               |
+|                          |                                                                                                              | if err != nil {                                                                                               |
+|                          |                                                                                                              |     return fmt.Errorf("failed to create file %s: %w", fileName, err)                                          |
+|                          |                                                                                                              | }                                                                                                             |
+| Resource Leaks           | ```go                                                                                                        | ```go                                                                                                         |
+|                          | resp, err := http.Get(url)                                                                                   | resp, err := http.Get(url)                                                                                    |
+|                          | if err != nil {                                                                                              | if err != nil {                                                                                               |
+|                          |     return err                                                                                               |     return err                                                                                                |
+|                          | }                                                                                                            | }                                                                                                             |
+|                          | // resp.Body.Close() is missing                                                                              | defer resp.Body.Close()                                                                                       |
+|                          | _, err = io.Copy(out, resp.Body)                                                                             |                                                                                                               |
+|                          |                                                                                                              | _, err = io.Copy(out, resp.Body)                                                                              |
+|                          |                                                                                                              | if err != nil {                                                                                               |
+|                          |                                                                                                              |     return err                                                                                                |
+|                          |                                                                                                              | }                                                                                                             |
+| Panic and Recover Misuse | ```go                                                                                                        | ```go                                                                                                         |
+|                          | if err != nil {                                                                                              | if err != nil {                                                                                               |
+|                          |     panic(err)                                                                                               |     log.Fatalf("Fatal error: %s", err)                                                                        |
+|                          | }                                                                                                            | }                                                                                                             |
+| Concurrency Issues       | ```go                                                                                                        | ```go                                                                                                         |
+|                          | var counter int                                                                                              | var mu sync.Mutex                                                                                             |
+|                          | go func() {                                                                                                  | var counter int                                                                                               |
+|                          |     counter++                                                                                                | go func() {                                                                                                   |
+|                          | }()                                                                                                          |     mu.Lock()                                                                                                 |
+|                          |                                                                                                              |     defer mu.Unlock()                                                                                         |
+|                          |                                                                                                              |     counter++                                                                                                |
+|                          |                                                                                                              | }()                                                                                                           |
+| Improper Use of defer    | ```go                                                                                                        | ```go                                                                                                         |
+|                          | f, err := os.Open(file)                                                                                      | f, err := os.Open(file)                                                                                       |
+|                          | if err != nil {                                                                                              | if err != nil {                                                                                               |
+|                          |     return err                                                                                               |     return err                                                                                                |
+|                          | }                                                                                                            | }                                                                                                             |
+|                          | processFile(f)                                                                                               | defer f.Close()                                                                                               |
+|                          | f.Close() // If processFile panics, this won't be called                                                     | processFile(f)                                                                                                 |
+| Ignoring recover         | ```go                                                                                                        | ```go                                                                                                         |
+|                          | func mightPanic() {                                                                                          | func safeCall() {                                                                                             |
+|                          |     panic("something went wrong")                                                                            |     defer func() {                                                                                            |
+|                          | }                                                                                                            |         if r := recover(); r != nil {                                                                         |
+|                          |                                                                                                              |             log.Printf("Recovered from panic: %v", r)                                                         |
+|                          |                                                                                                              |         }                                                                                                     |
+|                          |                                                                                                              |     }()                                                                                                       |
+|                          |                                                                                                              |     mightPanic()                                                                                              |
+|                          |                                                                                                              | }                                                                                                             |
+| Hardcoding Values        | ```go                                                                                                        | ```go                                                                                                         |
+|                          | port := "8080"                                                                                               | port := os.Getenv("PORT")                                                                                     |
+|                          |                                                                                                              | if port == "" {                                                                                               |
+|                          |                                                                                                              |     port = "8080"                                                                                            |
+|                          |                                                                                                              | }                                                                                                             |
+| Inconsistent Naming      | ```go                                                                                                        | ```go                                                                                                         |
+|                          | func Fetch_data() {}                                                                                        | func fetchData() {}                                                                                           |
+| Global Variables         | ```go                                                                                                        | ```go                                                                                                         |
+|                          | var config Config                                                                                            | func main() {                                                                                                 |
+|                          |                                                                                                              |     config := loadConfig()                                                                                    |
+|                          |                                                                                                              |     runApp(config)                                                                                            |
+|                          |                                                                                                              | }                                                                                                             |
+| Not Using context        | ```go                                                                                                        | ```go                                                                                                         |
+|                          | func fetchData() error {                                                                                     | func fetchData(ctx context.Context) error {                                                                   |
+|                          |     // long running operation                                                                                |     // use ctx for cancellation and timeouts                                                                  |
+|                          | }                                                                                                            | }                                                                                                             |
+| Ignoring Go Vet          | ```go                                                                                                        | ```sh                                                                                                         |
+|                          | // Not running go vet                                                                                        | go vet ./...                                                                                                  |
+| Not Using go fmt         | ```go                                                                                                        | ```go                                                                                                         |
+|                          | func main(){fmt.Println("Hello, world!")}                                                                    | func main() {                                                                                                 |
+|                          |                                                                                                              |     fmt.Println("Hello, world!")                                                                              |
+|                          |                                                                                                              | }                                                                                                             |
+| Using interface{} Unnecessarily | ```go                                                                                                | ```go                                                                                                         |
+|                          | func process(data interface{}) error {                                                                       | func process(data []byte) error {                                                                             |
+|                          |     // process data                                                                                          |     // process data                                                                                           |
+|                          | }                                                                                                            | }                                                                                                             |
+| Misusing sync.Pool       | ```go                                                                                                        | ```go                                                                                                         |
+|                          | var pool = sync.Pool{                                                                                        | var bufPool = sync.Pool{                                                                                      |
+|                          |     New: func() interface{} {                                                                                |     New: func() interface{} {                                                                                 |
+|                          |         return new(bytes.Buffer)                                                                             |         return new(bytes.Buffer)                                                                              |
+|                          |     },                                                                                                       |     },                                                                                                        |
+|                          | }                                                                                                            | }                                                                                                             |
+|                          | // Not resetting the buffer before putting it back                                                           | buf := bufPool.Get().(*bytes.Buffer)                                                                          |
+|                          |                                                                                                              | buf.Reset() // Reset before using                                                                             |
+|                          |                                                                                                              | defer bufPool.Put(buf)                                                                                        |
+|                          |                                                                                                              | // Use buf                                                                                                    |
 
-    1. Ignoring Errors
-    
-    Pitfall:
-    
-    go
-    
-    out, _ := os.Create(fileName)
-    
-    Correct:
-    
-    go
-    
-    out, err := os.Create(fileName)
-    if err != nil {
-        return fmt.Errorf("failed to create file %s: %w", fileName, err)
-    }
-    
-    2. Resource Leaks
-    
-    Pitfall:
-    
-    go
-    
-    resp, err := http.Get(url)
-    if err != nil {
-        return err
-    }
-    // resp.Body.Close() is missing
-    _, err = io.Copy(out, resp.Body)
-    
-    Correct:
-    
-    go
-    
-    resp, err := http.Get(url)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
-    
-    _, err = io.Copy(out, resp.Body)
-    if err != nil {
-        return err
-    }
-    
-    3. Panic and Recover Misuse
-    
-    Pitfall:
-    
-    go
-    
-    if err != nil {
-        panic(err)
-    }
-    
-    Correct:
-    
-    go
-    
-    if err != nil {
-        log.Fatalf("Fatal error: %s", err)
-    }
-    
-    4. Concurrency Issues
-    
-    Pitfall:
-    
-    go
-    
-    var counter int
-    go func() {
-        counter++
-    }()
-    
-    Correct:
-    
-    go
-    
-    var mu sync.Mutex
-    var counter int
-    go func() {
-        mu.Lock()
-        defer mu.Unlock()
-        counter++
-    }()
-    
-    5. Improper Use of defer
-    
-    Pitfall:
-    
-    go
-    
-    f, err := os.Open(file)
-    if err != nil {
-        return err
-    }
-    processFile(f)
-    f.Close() // If processFile panics, this won't be called
-    
-    Correct:
-    
-    go
-    
-    f, err := os.Open(file)
-    if err != nil {
-        return err
-    }
-    defer f.Close()
-    processFile(f)
-    
-    6. Ignoring recover
-    
-    Pitfall:
-    
-    go
-    
-    func mightPanic() {
-        panic("something went wrong")
-    }
-    
-    Correct:
-    
-    go
-    
-    func safeCall() {
-        defer func() {
-            if r := recover(); r != nil {
-                log.Printf("Recovered from panic: %v", r)
-            }
-        }()
-        mightPanic()
-    }
-    
-    7. Hardcoding Values
-    
-    Pitfall:
-    
-    go
-    
-    port := "8080"
-    
-    Correct:
-    
-    go
-    
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
-    
-    8. Inconsistent Naming
-    
-    Pitfall:
-    
-    go
-    
-    func Fetch_data() {}
-    
-    Correct:
-    
-    go
-    
-    func fetchData() {}
-    
-    9. Global Variables
-    
-    Pitfall:
-    
-    go
-    
-    var config Config
-    
-    Correct:
-    
-    go
-    
-    func main() {
-        config := loadConfig()
-        runApp(config)
-    }
-    
-    10. Not Using context
-    
-    Pitfall:
-    
-    go
-    
-    func fetchData() error {
-        // long running operation
-    }
-    
-    Correct:
-    
-    go
-    
-    func fetchData(ctx context.Context) error {
-        // use ctx for cancellation and timeouts
-    }
-    
-    11. Ignoring Go Vet
-    
-    Pitfall:
-    
-    go
-    
-    // Not running go vet
-    
-    Correct:
-    
-    sh
-    
-    go vet ./...
-    
-    12. Not Using go fmt
-    
-    Pitfall:
-    
-    go
-    
-    func main(){fmt.Println("Hello, world!")}
-    
-    Correct:
-    
-    go
-    
-    func main() {
-        fmt.Println("Hello, world!")
-    }
-    
-    13. Using interface{} Unnecessarily
-    
-    Pitfall:
-    
-    go
-    
-    func process(data interface{}) error {
-        // process data
-    }
-    
-    Correct:
-    
-    go
-    
-    func process(data []byte) error {
-        // process data
-    }
-    
-    14. Misusing sync.Pool
-    
-    Pitfall:
-    
-    go
-    
-    var pool = sync.Pool{
-        New: func() interface{} {
-            return new(bytes.Buffer)
-        },
-    }
-    // Not resetting the buffer before putting it back
-    
-    Correct:
-    
-    go
-    
-    var bufPool = sync.Pool{
-        New: func() interface{} {
-            return new(bytes.Buffer)
-        },
-    }
-    buf := bufPool.Get().(*bytes.Buffer)
-    buf.Reset() // Reset before using
-    defer bufPool.Put(buf)
-    // Use buf
-    
-        enter code here
